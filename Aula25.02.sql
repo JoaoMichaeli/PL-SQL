@@ -78,3 +78,18 @@ DECLARE
 BEGIN
     INSERT INTO aluno (ra,nome) VALUES(v_ra, v_nome);
 END;
+
+// Atualizando o valor do banco com o dado da variante
+DECLARE
+    v_ra CHAR(9) := '111222333';
+    v_nome VARCHAR2(50) := 'Antonio Rodrigues';
+BEGIN
+    UPDATE aluno SET nome = v_nome WHERE ra = v_ra;
+END;
+
+// Deletando
+DECLARE
+    v_ra CHAR(9) := '444555666';
+BEGIN
+    DELETE FROM aluno WHERE ra = v_ra;
+END;
