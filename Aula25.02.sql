@@ -16,7 +16,7 @@ END;
 DECLARE
     numero NUMBER := '&digite';
 BEGIN
-    IF MOD(numero,2) = 0 THEN
+    IF MOD(numero, 2) = 0 THEN
         dbms_output.put_line('O número informado é PAR');
     ELSE
         dbms_output.put_line('O número informado é ÍMPAR');
@@ -30,13 +30,51 @@ END;
 * Menor que 6 = reprovado!
 */
 DECLARE
-    nota DOUBLE := '&digite';
+    nota NUMBER := &digite;
 BEGIN
-    IF nota >= 8 AND nota <= 10 THEN
+    IF
+        nota >= 8
+        AND nota <= 10
+    THEN
         dbms_output.put_line('A nota está acima da média');
-    ELSIF nota BETWEEN 6 AND 7 THEN
+    ELSIF
+        nota >= 6
+        AND nota < 8
+    THEN
         dbms_output.put_line('A nota está na média');
     ELSE
         dbms_output.put_line('Você foi reprovado');
     END IF;
+END;
+
+---------------------------------------------------------------------------------
+
+// 3
+CREATE TABLE aluno (
+    ra   CHAR(9),
+    nome VARCHAR2(50),
+    CONSTRAINT aluno_pk PRIMARY KEY ( ra )
+);
+
+INSERT INTO aluno (ra,nome) VALUES ('111222333','Antonio Alves');
+INSERT INTO aluno (ra,nome) VALUES ('222333444','Beatriz Bernandes');
+INSERT INTO aluno (ra,nome) VALUES ('333444555','Cláudio Cardoso');
+
+
+-- INSTRUÇÃO DQL, exemplo:
+// Buscando o aluno pelo RA
+DECLARE
+    v_ra CHAR(9) := '333444555';
+    v_nome VARCHAR2(50);
+BEGIN
+    SELECT nome INTO v_nome FROM aluno WHERE ra = v_ra;
+    dbms_output.put_line('O nome do aluno é: ' || v_nome);
+END;
+
+// Inserção pelo RA e Nome
+DECLARE
+    v_ra CHAR(9) := '444555666';
+    v_nome VARCHAR2(50) := 'Daniela Dorneles';
+BEGIN
+    INSERT INTO aluno (ra,nome) VALUES(v_ra, v_nome);
 END;
