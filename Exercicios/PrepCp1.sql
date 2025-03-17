@@ -137,9 +137,9 @@ DECLARE
 BEGIN
     FOR pedido IN pedidos_clientes LOOP
         dbms_output.put_line('Código do Pedido: '
-                             || nvl(pedido.cod_pedido, 'Sem pedido')
+                             || NVL(TO_CHAR(pedido.cod_pedido), 'Sem pedido')
                              || ' | Valor Total: '
-                             || nvl(pedido.val_total_pedido, 0)
+                             || NVL(TO_CHAR(pedido.val_total_pedido), '0')
                              || ' | Cliente: '
                              || pedido.nom_cliente
                              || ' | Código do Cliente: '
