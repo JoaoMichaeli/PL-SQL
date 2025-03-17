@@ -73,16 +73,34 @@ BEGIN
                              || produto_composto.cod_produto_relacionado);
     END LOOP;
 END;
-    
-    
 
 
---Crie um bloco anônimo para calcular o total de movimentações de estoque para um determinado produto usando INNER JOIN com a tabela de tipo_movimento_estoque. 
+--Crie um bloco anônimo para calcular o total de movimentações de estoque para um determinado produto usando INNER JOIN com a tabela de tipo_movimento_estoque.
+DECLARE
+    v_codigo_produto     NUMBER;
+    v_total_movimentacao NUMBER := 0;
+BEGIN
+    v_codigo_produto := &cod_produto;
+    SELECT
+        SUM(m.qtd_movimentacao_estoque)
+    INTO v_total_movimentacao
+    FROM
+             movimento_estoque m
+        INNER JOIN tipo_movimento_estoque t ON m.cod_tipo_movimento_estoque = t.cod_tipo_movimento_estoque
+    WHERE
+        m.cod_produto = v_codigo_produto;
 
+    dbms_output.put_line('Total de movimentação para o produto '
+                         || v_codigo_produto
+                         || ': '
+                         || v_total_movimentacao);
+END;
 
 
 --Crie um bloco anônimo para exibir os produtos compostos e, se houver, suas informações de estoque, usando LEFT JOIN com a tabela estoque_produto. 
-
+DECLARE
+    CURSOR prod_composto IS
+    SELECT
 
 
 --Crie um bloco que exiba as informações de pedidos e, se houver, as informações dos clientes relacionados usando RIGHT JOIN com a tabela cliente. 
