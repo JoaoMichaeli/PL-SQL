@@ -101,10 +101,84 @@ END;
 DECLARE
     CURSOR prod_composto IS
     SELECT
+        p.cod_produto,
+        p.cod_produto_relacionado,
+        e.qtd_estoque
+    FROM
+        produto_composto p
+        LEFT JOIN estoque_produto  e ON p.cod_produto = e.cod_produto
+    WHERE
+        p.sta_ativo = 'S';
+
+BEGIN
+    FOR produto IN prod_composto LOOP
+        dbms_output.put_line('Código do produto: '
+                             || produto.cod_produto
+                             || ' | Produto relacionado: '
+                             || produto.cod_produto_relacionado
+                             || ' | Quantidade em estoque: '
+                             || nvl(produto.qtd_estoque, 0));
+    END LOOP;
+END;
 
 
 --Crie um bloco que exiba as informações de pedidos e, se houver, as informações dos clientes relacionados usando RIGHT JOIN com a tabela cliente. 
+DECLARE
+    CURSOR pedidos_clientes IS
+    SELECT
+        p.cod_pedido,
+        p.val_total_pedido,
+        c.cod_cliente,
+        c.nom_cliente
+    FROM
+        pedido  p
+        RIGHT JOIN cliente c ON p.cod_cliente = c.cod_cliente;
 
-
+BEGIN
+    FOR pedido IN pedidos_clientes LOOP
+        dbms_output.put_line('Código do Pedido: '
+                             || nvl(pedido.cod_pedido, 'Sem pedido')
+                             || ' | Valor Total: '
+                             || nvl(pedido.val_total_pedido, 0)
+                             || ' | Cliente: '
+                             || pedido.nom_cliente
+                             || ' | Código do Cliente: '
+                             || pedido.cod_cliente);
+    END LOOP;
+END;
+ 
 
 --Crie um bloco que calcule a média de valores totais de pedidos para um cliente específico e exibe as informações do cliente usando INNER JOIN com a tabela cliente. 
+DECLARE
+    v_cod_cliente        NUMBER;
+    v_total_pedidos      NUMBER := 0;
+    v_quantidade_pedidos NUMBER := 0;
+    v_media_pedidos      INTEGER;
+    v_nom_cliente       VARCHAR2(100);
+BEGIN
+    v_cod_cliente := &cod_cliente;
+
+    SELECT c.nom_cliente INTO v_nom_cliente
+    FROM cliente c
+    WHERE c.cod_cliente = v_cod_cliente;
+
+    FOR pedido IN (
+        SELECT p.val_total_pedido
+        FROM pedido p
+        INNER JOIN cliente c
+        ON p.cod_cliente = c.cod_cliente
+        WHERE p.cod_cliente = v_cod_cliente
+    ) LOOP
+        v_total_pedidos := v_total_pedidos + pedido.val_total_pedido;
+        v_quantidade_pedidos := v_quantidade_pedidos + 1;
+    END LOOP;
+
+    IF v_quantidade_pedidos > 0 THEN
+        v_media_pedidos := v_total_pedidos / v_quantidade_pedidos;
+        dbms_output.put_line('Cliente: ' || v_nom_cliente || ' (Código: ' || v_cod_cliente || ')');
+        dbms_output.put_line('Média dos pedidos: ' || v_media_pedidos);
+    ELSE
+        dbms_output.put_line('Não existem pedidos para o cliente ' || v_nom_cliente || ' (Código: ' || v_cod_cliente || ')');
+    END IF;
+
+END;
