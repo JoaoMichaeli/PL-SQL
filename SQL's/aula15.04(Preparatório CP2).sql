@@ -1,113 +1,233 @@
-CREATE OR REPLACE FUNCTION cal_desc (
-    p_cod_pedido NUMBER
-) RETURN NUMBER IS
-    val_desc NUMBER;
-BEGIN
-    SELECT
-        ( SUM(val_desconto_item) ) / 100
-    INTO val_desc
-    FROM
-             pedido a
-        INNER JOIN item_pedido b ON ( a.cod_pedido = b.cod_pedido )
-    WHERE
-        a.cod_pedido = p_cod_pedido;
-
-EXCEPTION
-    WHEN no_data_found THEN
-        raise_application_error(-ora20001, 'Não encontrou');
-        RETURN p_cod_pedido;
-END;
+SET SERVEROUTPUT ON;
 
 
 /*
-Função 1 – fnc_percentual_desconto
-Crie uma função chamada `fnc_percentual_desconto` que, ao receber o código de um pedido, calcule o percentual de desconto aplicado
-sobre o valor total do pedido. A função deve utilizar `JOIN` com a tabela `item_pedido` para validar que o pedido possui ao menos um item,
-e deve tratar possíveis exceções como: pedido inexistente, divisão por zero e erro genérico.
+Funï¿½ï¿½o 1 ï¿½ fnc_percentual_desconto
+Crie uma funï¿½ï¿½o chamada `fnc_percentual_desconto` que, ao receber o cï¿½digo de um pedido, calcule o percentual de desconto aplicado
+sobre o valor total do pedido. A funï¿½ï¿½o deve utilizar `JOIN` com a tabela `item_pedido` para validar que o pedido possui ao menos um item,
+e deve tratar possï¿½veis exceï¿½ï¿½es como: pedido inexistente, divisï¿½o por zero e erro genï¿½rico.
+
+- Uso correto de JOIN 
+- Retorno numÃ©rico com duas casas decimais (opcional, mas desejÃ¡vel) 
+- Tratamento com EXCEPTION 
 */
 
 CREATE OR REPLACE FUNCTION fnc_percentual_desconto (
     v_cod pedido.cod_pedido%TYPE
 ) RETURN NUMBER IS
-    erro EXCEPTION;
+    v_percent NUMBER;
 BEGIN
     SELECT
-        ( SUM(val_desconto_item.item_pedido) ) / 100
+        ROUND(( SUM(pedido.val_desconto) * 100 ) / SUM(pedido.val_total_pedido),2)
+    INTO v_percent
     FROM
              pedido
-        JOIN item_pedido ON ( pedido.cod_pedido = item_pedido.cod_pedido )
+        JOIN item_pedido ON pedido.cod_pedido = item_pedido.cod_pedido
     WHERE
-        pedido.cod_pedido = item_pedido.cod_pedido;
+        pedido.cod_pedido = v_cod
+    GROUP BY
+        pedido.cod_pedido;
 
+    RETURN v_percent;
 EXCEPTION
     WHEN no_data_found THEN
-        raise_application_error(-20001, '');
-    
-    RETURN v_cod;
+        raise_application_error(-20001, 'Pedido inexistente ou sem itens.');
+    WHEN zero_divide THEN
+        raise_application_error(-20002, 'Erro: divisÃ£o por zero.');
+    WHEN OTHERS THEN
+        raise_application_error(-20003, 'Erro genÃ©rico: ' || sqlerrm);
+END fnc_percentual_desconto;
+
+SELECT fnc_percentual_desconto(130501) FROM DUAL;
+
+
+/*
+Funï¿½ï¿½o 2 ï¿½ fnc_media_itens_por_pedido
+Crie uma funï¿½ï¿½o que retorne a mï¿½dia de itens por pedido considerando todos os pedidos com itens registrados.
+Utilize `JOIN` com a tabela `historico_pedido` para garantir que os pedidos sï¿½o vï¿½lidos.
+Implemente tratamento de erro para divisï¿½o por zero e erro genï¿½rico.
+
+- Uso correto de agregaÃ§Ãµes (COUNT, DISTINCT) 
+- Uso de JOIN 
+- Tratamento de exceÃ§Ãµes 
+*/
+
+CREATE OR REPLACE FUNCTION fnc_media_itens_por_pedido RETURN NUMBER IS
+    v_media NUMBER;
+BEGIN
+    SELECT
+        AVG(num_itens)
+    INTO v_media
+    FROM
+        (
+            SELECT
+                pedido.cod_pedido,
+                COUNT(item_pedido.cod_item_pedido) AS num_itens
+            FROM
+                     pedido
+                JOIN historico_pedido ON pedido.cod_pedido = historico_pedido.cod_pedido
+                JOIN item_pedido ON pedido.cod_pedido = item_pedido.cod_pedido
+            GROUP BY
+                pedido.cod_pedido
+        );
+
+    RETURN v_media;
+EXCEPTION
+    WHEN zero_divide THEN
+        raise_application_error(-20001, 'Erro: divisÃ£o por zero.');
+    WHEN OTHERS THEN
+        raise_application_error(-20002, 'Erro genÃ©rico: ' || sqlerrm);
+END fnc_media_itens_por_pedido;
+
+SELECT fnc_media_itens_por_pedido FROM DUAL;
+
+
+/*
+Procedimento 1 ï¿½ prc_relatorio_estoque_produto
+Implemente um procedimento que receba o cï¿½digo de um produto e exiba, via `DBMS_OUTPUT`, o total de unidades
+movimentadas e a data da ï¿½ltima movimentaï¿½ï¿½o. Utilize um `LEFT JOIN` com a tabela `produto_composto`
+para mostrar que o produto pode fazer parte de composiï¿½ï¿½es, mesmo que nï¿½o tenha. Inclua tratamento para
+ausï¿½ncia de dados e erro genï¿½rico.
+
+- UtilizaÃ§Ã£o de agregaÃ§Ãµes (SUM, MAX) 
+- Uso de LEFT JOIN 
+- ImpressÃ£o no terminal com DBMS_OUTPUT 
+*/
+
+CREATE OR REPLACE PROCEDURE prc_relatorio_estoque_produto (
+    v_cod_produto estoque_produto.cod_produto%TYPE
+) IS
+    v_total NUMBER;
+    v_data  DATE;
+BEGIN
+    SELECT
+        SUM(estoque_produto.qtd_produto),
+        MAX(estoque_produto.dat_estoque)
+    INTO
+        v_total,
+        v_data
+    FROM
+        estoque_produto
+        LEFT JOIN produto_composto ON estoque_produto.cod_produto = produto_composto.cod_produto
+    WHERE
+        estoque_produto.cod_produto = v_cod_produto;
+
+    IF v_total = 0 OR v_total IS NULL THEN
+        dbms_output.put_line('Produto inexistente ou sem movimentaÃ§Ã£o.');
+    ELSE
+        dbms_output.put_line('Total de unidades movimentadas: ' || v_total);
+        dbms_output.put_line('Data da Ãºltima movimentaÃ§Ã£o: ' || TO_CHAR(v_data, 'DD/MM/YYYY HH24:MI:SS'));
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        dbms_output.put_line('Erro genÃ©rico: ' || SQLERRM);
+END prc_relatorio_estoque_produto;
+
+
+CALL prc_relatorio_estoque_produto(1);
+
+
+/*
+Procedimento 2 ï¿½ prc_relatorio_composicao_ativa
+Crie um procedimento que, dado o cï¿½digo de um produto, exiba os componentes ativos que fazem parte de sua composiï¿½ï¿½o.
+Use JOIN com a tabela `movimento_estoque` para relacionar os componentes com movimentaï¿½ï¿½es.
+Implemente o procedimento utilizando um `FOR LOOP` com `CURSOR IMPLï¿½CITO`, e trate erros genï¿½ricos.
+
+- Uso de JOIN 
+- LaÃ§o FOR ... IN (SELECT ...) LOOP 
+- ImpressÃ£o formatada com DBMS_OUTPUT 
+*/
+
+CREATE OR REPLACE PROCEDURE prc_relatorio_composicao_ativa (
+    v_cod_produto IN produto.cod_produto%TYPE
+) IS
+    v_encontrou BOOLEAN := FALSE;
+BEGIN
+    FOR i IN (
+        SELECT
+            pc.cod_produto_relacionado AS componente,
+            me.cod_tipo_movimento_estoque AS movimento,
+            me.dat_movimento_estoque AS data_movimentacao
+        FROM
+            produto_composto pc
+            JOIN movimento_estoque me ON pc.cod_produto_relacionado = me.cod_produto
+        WHERE
+            pc.cod_produto = v_cod_produto
+            AND pc.sta_ativo = 'S'
+    ) LOOP
+        v_encontrou := TRUE;
+        dbms_output.put_line('Componente: ' || i.componente);
+        dbms_output.put_line(' | Movimento: ' || i.movimento);
+        dbms_output.put_line(' | Data da movimentaÃ§Ã£o: ' ||
+            TO_CHAR(i.data_movimentacao, 'DD/MM/YYYY HH24:MI:SS'));
+    END LOOP;
+
+    IF NOT v_encontrou THEN
+        dbms_output.put_line('Nenhum componente ativo encontrado para este produto.');
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        dbms_output.put_line('Erro genÃ©rico: ' || SQLERRM);
 END;
 
-/*
-Função 2 – fnc_media_itens_por_pedido
-Crie uma função que retorne a média de itens por pedido considerando todos os pedidos com itens registrados.
-Utilize `JOIN` com a tabela `historico_pedido` para garantir que os pedidos são válidos.
-Implemente tratamento de erro para divisão por zero e erro genérico.
-*/
 
-CREATE OR REPLACE FUNCTION fnc_media_itens_por_pedido (
-    v_cod pedido.cod_pedido%TYPE
-) RETURN NUMBER IS 
-    erro EXCEPTION;
-    v_cod pedido.cod_pedido%TYPE;
-BEGIN 
-    IF 
-        val_total_pedido !=  0
-    THEN
-        FOR i IN(
-            SELECT 
-                pedido.cod_pedido,
-                item_pedido.cod_item_pedido,
-                item_pedido.qtd_item,
-                historico_pedido.cod_cliente
-            FROM
-                pedido
-                JOIN item_pedido ON ( pedido.cod_pedido = item_pedido.cod_pedido)
-                JOIN historico_pedido ON (item_pedido.cod_pedido = historico_pedido.cod_pedido)
-            WHERE
-                pedido.cod_pedido = v_cod_pedido
-        ) LOOP
-            dbms_output.put_line('Código do pedido: ' || i.cod_pedido);
-            dbms_output.put_line('Média de itens por pedido: ' || media_itens_pedido);
-    EXCEPTION
-        WHEN erro THEN
-            raise_application_error(-20001, 'A divisão não pode ser por 0');
-END fnc_media_itens_por_pedido;
-    
+CALL prc_relatorio_composicao_ativa(1);
 
 
 /*
-Procedimento 1 – prc_relatorio_estoque_produto
-Implemente um procedimento que receba o código de um produto e exiba, via `DBMS_OUTPUT`, o total de unidades
-movimentadas e a data da última movimentação. Utilize um `LEFT JOIN` com a tabela `produto_composto`
-para mostrar que o produto pode fazer parte de composições, mesmo que não tenha. Inclua tratamento para
-ausência de dados e erro genérico.
-*/
-
-
-/*
-Procedimento 2 – prc_relatorio_composicao_ativa
-Crie um procedimento que, dado o código de um produto, exiba os componentes ativos que fazem parte de sua composição.
-Use JOIN com a tabela `movimento_estoque` para relacionar os componentes com movimentações.
-Implemente o procedimento utilizando um `FOR LOOP` com `CURSOR IMPLÍCITO`, e trate erros genéricos.
-*/
-
-
-
-
-/*
-Procedimento 3 – prc_relatorio_pedido
-Desenvolva um procedimento que exiba informações detalhadas de um pedido, como:
+Procedimento 3 ï¿½ prc_relatorio_pedido
+Desenvolva um procedimento que exiba informaï¿½ï¿½es detalhadas de um pedido, como:
 valor total, desconto e status de entrega (`ENTREGUE` ou `PENDENTE`).
-O procedimento deve aceitar o código do pedido como parâmetro e utilizar
+O procedimento deve aceitar o cï¿½digo do pedido como parï¿½metro e utilizar
 JOIN com a tabela `item_pedido` para garantir que o pedido possua itens.
-Inclua tratamento para pedido inexistente e erros genéricos.
+Inclua tratamento para pedido inexistente e erros genï¿½ricos.
+
+- LÃ³gica condicional (IF/ELSE) para status 
+- Uso de JOIN 
+- Uso correto de DBMS_OUTPUT.PUT_LINE 
 */
+
+CREATE OR REPLACE PROCEDURE prc_relatorio_pedido (
+    v_cod_pedido IN pedido.cod_pedido%TYPE
+) IS
+    v_valor_total NUMBER;
+    v_desconto    NUMBER;
+    v_status      VARCHAR2(20);
+BEGIN
+    SELECT
+        pedido.val_total_pedido,
+        pedido.val_desconto,
+        CASE
+            WHEN pedido.status = 'S' THEN
+                'ENTREGUE'
+            ELSE
+                'PENDENTE'
+        END AS status_entrega
+    INTO
+        v_valor_total,
+        v_desconto,
+        v_status
+    FROM
+             pedido 
+        JOIN item_pedido ON pedido.cod_pedido = item_pedido.cod_pedido
+    WHERE
+        pedido.cod_pedido = v_cod_pedido
+    GROUP BY
+        pedido.val_total_pedido,
+        pedido.val_desconto,
+        pedido.status;
+
+    dbms_output.put_line('Valor Total: ' || to_char(v_valor_total, 'FM999990.00'));
+    dbms_output.put_line('Desconto: ' || to_char(v_desconto, 'FM999990.00'));
+    dbms_output.put_line('Status de Entrega: ' || v_status);
+EXCEPTION
+    WHEN no_data_found THEN
+        dbms_output.put_line('Pedido inexistente ou sem itens.');
+    WHEN OTHERS THEN
+        dbms_output.put_line('Erro genÃ©rico: ' || sqlerrm);
+END prc_relatorio_pedido;
+
+
+CALL prc_relatorio_pedido(130501);
