@@ -1,4 +1,4 @@
-SET 
+SET SERVEROUTPUT ON;
 /*      CURSORES      */
 /*
 Variáveis de cursores
@@ -57,8 +57,24 @@ BEGIN
     FOR x IN c_consulta_cliente LOOP
         dbms_output.put_line('Cliente: '
                              || x.cod_cliente
-                             || 'Nome: '
+                             || ' | Nome: '
                              || x.nom_cliente);
     END LOOP;
 END;
 
+/*
+Faça um procedimento chamado PRC_VALIDA_TOTAL_PEDIDO que receba como parametro o código do pedido e que utilize dois cursores,
+um para localizar o pedido e outro para acessar os itens deste pedido ,
+fazendo a soma dos itens e ao final verificar se a soma dos itens (quantidade * preço unitário) – desconto é igual ao total do pedido.
+Caso os valores coincidam retorne pelo parametro p_retorno a mensagem ‘pedido ok’,
+caso contrario retorne ‘total dos itens não coincide com valor total do pedido’
+*/
+
+DECLARE
+    CURSOR c
+
+
+/*
+Faça um procedimento chamado PRC_DELETA_PEDIDO que receba como parametro o numero do pedido e que antes de excluir o
+pedido execute um cursor na tabela de itens de pedido e faça o delete de cada um deles usando a técnica de ROWID.
+*/
